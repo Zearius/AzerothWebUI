@@ -1,12 +1,17 @@
+using AzerothWebUI.Core.Auth;
+using AzerothWebUI.Core.Data;
+using AzerothWebUI.Core.Domain;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+var authConnectionString = builder.Configuration.GetValue<string>("AzerothCore:AuthConnectionString")
+    ?? throw new InvalidOperationException("AzerothCore:AuthConnectionString is not configured.");
+builder.Services.AddSingleton(new AccountRepository(authConnectionString));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -14,28 +19,34 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
+app.MapPost("/api/register", async (RegistrationRequest request, AccountRepository accounts) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    if (string.IsNullOrWhiteSpace(request.Username) || request.Username.Length > 16)
+    {
+        return Results.BadRequest("Username is required and must be 16 characters or fewer.");
+    }
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length > 16)
+    {
+        return Results.BadRequest("Password is required and must be 16 characters or fewer.");
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Email))
+    {
+        return Results.BadRequest("Email is required.");
+    }
+
+    if (await accounts.UsernameExistsAsync(request.Username))
+    {
+        return Results.Conflict("Username is already taken.");
+    }
+
+    var salt = Srp6.GenerateSalt();
+    var verifier = Srp6.ComputeVerifier(request.Username, request.Password, salt);
+    await accounts.CreateAccountAsync(request.Username, salt, verifier, request.Email);
+
+    return Results.Created();
 })
-.WithName("GetWeatherForecast");
+.WithName("Register");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

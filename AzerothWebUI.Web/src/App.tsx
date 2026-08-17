@@ -1,116 +1,25 @@
-import { useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router'
+import { AdminAuthProvider } from './AdminAuthContext'
+import Register from './pages/Register'
+import AdminLogin from './pages/AdminLogin'
+import AdminLayout from './pages/AdminLayout'
+import AdminStatus from './pages/AdminStatus'
+import AdminAccounts from './pages/AdminAccounts'
 import './App.css'
 
-type Status = 'idle' | 'submitting' | 'success' | 'error'
-
 function App() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<Status>('idle')
-  const [message, setMessage] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (password !== confirmPassword) {
-      setStatus('error')
-      setMessage('Passwords do not match.')
-      return
-    }
-
-    setStatus('submitting')
-    setMessage('')
-
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, email }),
-      })
-
-      if (response.ok) {
-        setStatus('success')
-        setMessage(`Account "${username}" created. You can now log in with the game client.`)
-        setUsername('')
-        setPassword('')
-        setConfirmPassword('')
-        setEmail('')
-        return
-      }
-
-      const errorText = await response.text()
-      setStatus('error')
-      setMessage(errorText || `Registration failed (${response.status}).`)
-    } catch {
-      setStatus('error')
-      setMessage('Could not reach the server. Please try again.')
-    }
-  }
-
   return (
-    <section id="center">
-      <div>
-        <h1>Create Account</h1>
-        <p>Register a new account for the server.</p>
-      </div>
-
-      <form className="register-form" onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
-
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
-
-        <label>
-          Confirm password
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
-
-        <button type="submit" className="counter" disabled={status === 'submitting'}>
-          {status === 'submitting' ? 'Creating…' : 'Create Account'}
-        </button>
-
-        {message && (
-          <p className={status === 'success' ? 'form-message success' : 'form-message error'}>
-            {message}
-          </p>
-        )}
-      </form>
-    </section>
+    <AdminAuthProvider>
+      <Routes>
+        <Route path="/" element={<Register />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="status" replace />} />
+          <Route path="status" element={<AdminStatus />} />
+          <Route path="accounts" element={<AdminAccounts />} />
+        </Route>
+      </Routes>
+    </AdminAuthProvider>
   )
 }
 

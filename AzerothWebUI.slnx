@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="AzerothWebUI.Api/AzerothWebUI.Api.csproj" />
+  <Project Path="AzerothWebUI.Core.Tests/AzerothWebUI.Core.Tests.csproj" />
+  <Project Path="AzerothWebUI.Core/AzerothWebUI.Core.csproj" />
+</Solution>

@@ -1,9 +1,62 @@
+using AzerothWebUI.Core.Domain;
 using MySqlConnector;
 
 namespace AzerothWebUI.Core.Data;
 
 public class AccountRepository(string authConnectionString)
 {
+    public async Task<IReadOnlyList<AdminAccountSummary>> ListAccountsAsync()
+    {
+        await using var connection = new MySqlConnection(authConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                a.id,
+                a.username,
+                a.email,
+                COALESCE(aa.gmlevel, 0) AS gmlevel,
+                EXISTS (
+                    SELECT 1 FROM account_banned ab
+                    WHERE ab.id = a.id AND ab.active = 1
+                        AND (ab.unbandate = 0 OR ab.unbandate > UNIX_TIMESTAMP())
+                ) AS banned,
+                a.online
+            FROM account a
+            LEFT JOIN account_access aa ON aa.id = a.id
+            ORDER BY a.username
+            """;
+
+        var results = new List<AdminAccountSummary>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new AdminAccountSummary(
+                reader.GetInt32(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetByte(3),
+                reader.GetBoolean(4),
+                reader.GetUInt32(5) != 0));
+        }
+
+        return results;
+    }
+
+    public async Task<int?> FindIdByUsernameAsync(string username)
+    {
+        await using var connection = new MySqlConnection(authConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id FROM account WHERE username = @username LIMIT 1";
+        command.Parameters.AddWithValue("@username", username.ToUpperInvariant());
+
+        var result = await command.ExecuteScalarAsync();
+        return result is null ? null : Convert.ToInt32(result);
+    }
+
     public async Task<bool> UsernameExistsAsync(string username)
     {
         await using var connection = new MySqlConnection(authConnectionString);

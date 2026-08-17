@@ -10,7 +10,7 @@ eye toward eventually shipping as an optional container in that project's docker
 ## Planned features
 
 1. **Public account registration** — self-service signup, writes directly to `acore_auth`
-   with correct SRP6 password verifier generation. No SOAP/console involvement.
+   with correct SRP6 password verifier generation. No SOAP/console involvement. **Implemented.**
 2. **Admin panel** — manage bots/players, ban, kick, disconnect, etc. Backed by AzerothCore's
    SOAP command API (`SOAP.Enabled` in `worldserver.conf`), sitting behind its own
    application-level admin auth (not reused WoW account credentials).
@@ -57,4 +57,6 @@ npm run dev
 
 ## Status
 
-Early scaffold. No features implemented yet.
+Public account registration is implemented and verified end-to-end (SRP6 verifier generation,
+`POST /api/register`, and a minimal React signup form) — confirmed by logging into a
+registration-created account with the game client. Everything else is still a scaffold.

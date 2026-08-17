@@ -1,0 +1,6 @@
+@AzerothWebUI.Api_HostAddress = http://localhost:5105
+
+GET {{AzerothWebUI.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

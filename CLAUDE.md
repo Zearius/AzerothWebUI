@@ -67,6 +67,70 @@ Node/React fluency when explaining frontend pieces.
    `acore_world` for item/spell names). No SOAP needed.
 4. **Server stats** — mix of live SOAP-derived data (players online, uptime) and, for anything
    historical, data we'd need to start logging ourselves — nothing stores history by default.
+5. **Config editor** — structured, metadata-aware editing of game-related settings in
+   `worldserver.conf` and per-module `.conf` files (`mod_ahbot.conf`, `playerbots.conf`, etc.).
+   `authserver.conf` is explicitly **out of scope** — not a game-related config, not exposed in
+   the UI. See "Config editor design" below.
+
+## Config editor design
+
+**Why this exists:** hand-editing `worldserver.conf` (~5000 lines) and module configs is the
+kind of drudgery this whole project is meant to eliminate, same motivation as avoiding
+`docker attach` for account creation.
+
+**File format:** these are not INI in the strict sense — flat `key = value` lines (values
+sometimes quoted strings, sometimes bare numbers/booleans) inside one implicit section, each
+key preceded by a `#`-comment block containing a human-readable `Description:` and `Default:`.
+That comment block is real metadata, not just prose — parse it and surface it in the UI
+(description, default, valid values where enumerable) rather than building a plain key-value
+text editor. This is a deliberate scope decision: a generic editor would be faster to build but
+wouldn't actually solve the stated problem (people not understanding what a setting does).
+
+**Source of truth is always the file on disk** — AzerothCore's `ConfigMgr` and each module's
+config loader only ever read from the `.conf` file at startup/reload. There is no DB-backed
+config path in the engine, so a DB-staging-layer design (store canonical values in our own DB,
+sync out to files) was considered and rejected: it adds a consistency problem (file vs. DB
+drift if anyone hand-edits the file) for no corresponding benefit, since the file has to be
+written either way. Access the files through a small abstraction in `Core` (e.g.
+`IConfigFileStore`) backed by a direct-filesystem implementation for local dev/same-host
+deployments — interface exists so a remote (SSH/agent-based) implementation can be added later
+*if* the API container ever doesn't share a filesystem with the AzerothCore stack, without
+reworking domain logic. Don't build the remote implementation speculatively.
+
+**Reload behavior after save — classify every key/file, don't just say "restart me":**
+- AzerothCore's `World::LoadConfigSettings(bool reload)` (`src/server/game/World/World.cpp`)
+  already re-reads `worldserver.conf` and re-applies values live, and is wired to the existing
+  `reload config` command (`src/server/scripts/Commands/cs_reload.cpp`) — reachable over SOAP.
+  Most `worldserver.conf` keys are hot-reloadable this way; no restart-orchestration needed for
+  those, just issue SOAP `reload config` after writing the file.
+- A minority of `worldserver.conf` keys are excluded from reload in that same function (e.g.
+  `DataDir` — changing it via reload logs an error and keeps the old value) and need a real
+  worldserver process restart.
+- **Module configs are always treated as restart-required — deliberate, don't try to "fix"
+  this.** Investigated all four modules in the local `wow-server-playerbots` stack
+  (`mod-playerbots`, `mod-ah-bot`, `mod-talentbutton`, `mod-ale`) to check whether any hook the
+  engine's generic `reload config` path (`ScriptMgr::OnBeforeConfigLoad`/`OnAfterConfigLoad`):
+  - `mod-playerbots` (`playerbots.conf`) does *not* implement that hook at all. It has its own
+    separate live-reload path — the in-game/console/SOAP GM command `.bot reload`
+    (`modules/mod-playerbots/src/Bot/PlayerbotMgr.cpp:1035`) calls
+    `sPlayerbotAIConfig.Initialize()` directly, no restart needed. But that's a distinct
+    command from `reload config`, not something our generic save-flow trigger would hit.
+  - `mod-ah-bot` and `mod-talentbutton` do implement `OnBeforeConfigLoad`/`OnAfterConfigLoad`,
+    but only observed wired to world-startup hooks (`OnStartup`, `OnBeforeWorldInitialized`),
+    not to a reload command — i.e. config is read once at boot.
+  - `mod-ale` also implements the hook; body not fully inspected, but not worth finishing —
+    see decision below.
+  - **Decision: don't reimplement or special-case any of this per-module reload logic**
+    (including `mod-playerbots`' `.bot reload`), even where a live-reload path exists. Each
+    module's reload behavior is that module's own implementation detail, external to this app,
+    and could change on a module update; hard-coding around it is exactly the kind of coupling
+    this project shouldn't take on for a secondary convenience. Every module config key is
+    always classified as "needs worldserver restart" in the UI, full stop, no per-module
+    exceptions. Only `worldserver.conf`'s own `reload config` (owned by AzerothCore core, not a
+    module) gets the hot-reload treatment.
+- Save flow auto-detects the right action per key: fire SOAP `reload config` for hot-reloadable
+  `worldserver.conf` keys, prompt/trigger a worldserver restart for everything else (excluded
+  `worldserver.conf` keys and *all* module config keys).
 
 ## Key AzerothCore integration facts (learned this session, useful to re-derive quickly)
 

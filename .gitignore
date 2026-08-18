@@ -17,6 +17,9 @@ dist-ssr/
 appsettings.Development.json
 appsettings.Local.json
 
+# Claude Code project context (local working notes, not user-facing docs)
+CLAUDE.md
+
 # Logs
 *.log
 npm-debug.log*

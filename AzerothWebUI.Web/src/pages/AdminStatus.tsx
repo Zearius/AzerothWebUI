@@ -22,7 +22,7 @@ function AdminStatus() {
     <section>
       <div className="page-header">
         <h2>Server Status</h2>
-        <button type="button" className="counter" onClick={load} disabled={loading}>
+        <button type="button" className="btn btn-secondary" onClick={load} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>

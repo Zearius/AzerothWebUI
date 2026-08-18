@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAdminAuth } from '../AdminAuthContext'
+import PublicHeader from '../PublicHeader'
 
 function AdminLogin() {
   const [username, setUsername] = useState('')
@@ -26,30 +27,45 @@ function AdminLogin() {
   }
 
   return (
-    <section id="center">
-      <div>
-        <h1>Admin Login</h1>
-        <p>Sign in to manage the server.</p>
-      </div>
+    <>
+      <PublicHeader />
+      <section id="center">
+        <div>
+          <h1>Admin Login</h1>
+          <p>Sign in to manage the server.</p>
+        </div>
 
-      <form className="stack-form" onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
-        </label>
+        <form className="stack-form" onSubmit={handleSubmit}>
+          <label>
+            Username
+            <input
+              className="input"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </label>
 
-        <label>
-          Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
+          <label>
+            Password
+            <input
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
 
-        <button type="submit" className="counter" disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
 
-        {error && <p className="form-message error">{error}</p>}
-      </form>
-    </section>
+          {error && <p className="form-message error">{error}</p>}
+        </form>
+      </section>
+    </>
   )
 }
 

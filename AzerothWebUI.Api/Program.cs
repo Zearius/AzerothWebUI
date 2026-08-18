@@ -1,4 +1,5 @@
 using AzerothWebUI.Core.Auth;
+using AzerothWebUI.Core.Config;
 using AzerothWebUI.Core.Data;
 using AzerothWebUI.Core.Domain;
 using AzerothWebUI.Core.Soap;
@@ -32,6 +33,10 @@ var soapPassword = builder.Configuration.GetValue<string>("AzerothCore:SoapPassw
 builder.Services.AddHttpClient<SoapClient>();
 builder.Services.AddSingleton(sp => new SoapClient(
     sp.GetRequiredService<System.Net.Http.HttpClient>(), soapUrl, soapUsername, soapPassword));
+
+var worldserverConfigPath = builder.Configuration.GetValue<string>("AzerothCore:WorldserverConfigPath")
+    ?? throw new InvalidOperationException("AzerothCore:WorldserverConfigPath is not configured.");
+builder.Services.AddSingleton<IConfigFileStore>(new FileSystemConfigFileStore(worldserverConfigPath));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -147,6 +152,47 @@ app.MapGet("/api/admin/status", async (SoapClient soap) =>
 app.MapGet("/api/admin/accounts", async (AccountRepository accounts) =>
     Results.Ok(await accounts.ListAccountsAsync()))
 .WithName("AdminListAccounts")
+.RequireAuthorization();
+
+app.MapGet("/api/admin/config", async (IConfigFileStore configStore) =>
+{
+    var content = await configStore.ReadAllTextAsync();
+    var entries = WorldserverConfigParser.Parse(content)
+        .Where(e => !RestartRequiredKeys.Keys.Contains(e.Key))
+        .ToList();
+    return Results.Ok(entries);
+})
+.WithName("AdminGetConfig")
+.RequireAuthorization();
+
+app.MapPatch("/api/admin/config/{key}", async (string key, UpdateConfigValueRequest request, IConfigFileStore configStore, SoapClient soap) =>
+{
+    if (RestartRequiredKeys.Keys.Contains(key))
+    {
+        return Results.BadRequest($"'{key}' requires a worldserver restart and cannot be edited here.");
+    }
+
+    var content = await configStore.ReadAllTextAsync();
+    var updatedContent = WorldserverConfigWriter.SetValue(content, key, request.Value);
+    if (updatedContent is null)
+    {
+        return Results.NotFound($"Config key '{key}' was not found.");
+    }
+
+    await configStore.WriteAllTextAsync(updatedContent);
+
+    try
+    {
+        var reloadOutput = await soap.ExecuteCommandAsync("reload config");
+        var entry = WorldserverConfigParser.Parse(updatedContent).FirstOrDefault(e => e.Key == key);
+        return Results.Ok(new { entry, reloadResult = reloadOutput });
+    }
+    catch (SoapCommandException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("AdminUpdateConfig")
 .RequireAuthorization();
 
 app.MapPost("/api/admin/accounts/{username}/ban", async (string username, SoapClient soap) =>

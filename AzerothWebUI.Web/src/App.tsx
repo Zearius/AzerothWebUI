@@ -5,6 +5,7 @@ import AdminLogin from './pages/AdminLogin'
 import AdminLayout from './pages/AdminLayout'
 import AdminStatus from './pages/AdminStatus'
 import AdminAccounts from './pages/AdminAccounts'
+import AdminConfig from './pages/AdminConfig'
 import './App.css'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route index element={<Navigate to="status" replace />} />
           <Route path="status" element={<AdminStatus />} />
           <Route path="accounts" element={<AdminAccounts />} />
+          <Route path="config" element={<AdminConfig />} />
         </Route>
       </Routes>
     </AdminAuthProvider>

@@ -11,6 +11,25 @@ export type ServerStatus = {
   rawOutput: string
 }
 
+export type ConfigDefaultOption = {
+  value: string
+  label: string | null
+}
+
+export type ConfigEntry = {
+  key: string
+  currentValue: string
+  section: string
+  description: string
+  defaults: ConfigDefaultOption[]
+  isToggle: boolean
+}
+
+export type UpdateConfigResult = {
+  entry: ConfigEntry
+  reloadResult: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -45,4 +64,10 @@ export const adminApi = {
     request<{ result: string }>(`/api/admin/accounts/${encodeURIComponent(username)}/unban`, { method: 'POST' }),
   kick: (username: string) =>
     request<{ result: string }>(`/api/admin/accounts/${encodeURIComponent(username)}/kick`, { method: 'POST' }),
+  config: () => request<ConfigEntry[]>('/api/admin/config'),
+  updateConfig: (key: string, value: string) =>
+    request<UpdateConfigResult>(`/api/admin/config/${encodeURIComponent(key)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ value }),
+    }),
 }

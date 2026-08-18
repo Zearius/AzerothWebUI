@@ -22,6 +22,7 @@ function AdminLayout() {
         <nav className="admin-nav">
           <NavLink to="/admin/status">Status</NavLink>
           <NavLink to="/admin/accounts">Accounts</NavLink>
+          <NavLink to="/admin/config">Config</NavLink>
         </nav>
         <div className="admin-user">
           <span>{username}</span>

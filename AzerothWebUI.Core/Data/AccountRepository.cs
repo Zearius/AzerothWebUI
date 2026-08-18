@@ -57,6 +57,41 @@ public class AccountRepository(string authConnectionString)
         return result is null ? null : Convert.ToInt32(result);
     }
 
+    public async Task<AccountCredentials?> FindCredentialsByUsernameAsync(string username)
+    {
+        await using var connection = new MySqlConnection(authConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                a.id,
+                a.salt,
+                a.verifier,
+                EXISTS (
+                    SELECT 1 FROM account_banned ab
+                    WHERE ab.id = a.id AND ab.active = 1
+                        AND (ab.unbandate = 0 OR ab.unbandate > UNIX_TIMESTAMP())
+                ) AS banned
+            FROM account a
+            WHERE a.username = @username
+            LIMIT 1
+            """;
+        command.Parameters.AddWithValue("@username", username.ToUpperInvariant());
+
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new AccountCredentials(
+            reader.GetInt32(0),
+            (byte[])reader[1],
+            (byte[])reader[2],
+            reader.GetBoolean(3));
+    }
+
     public async Task<bool> UsernameExistsAsync(string username)
     {
         await using var connection = new MySqlConnection(authConnectionString);

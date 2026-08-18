@@ -52,6 +52,19 @@ public static class Srp6
         return ToFixedLengthLittleEndian(verifier, VerifierLength);
     }
 
+    /// <summary>
+    /// Verifies a submitted username/password by recomputing the verifier from the stored salt
+    /// and comparing it against the stored verifier in constant time. Not the interactive
+    /// zero-knowledge SRP6 challenge the game client uses — acceptable here since the password
+    /// is submitted directly over HTTPS by a web login form, not exchanged over the game
+    /// protocol.
+    /// </summary>
+    public static bool VerifyPassword(string username, string password, byte[] salt, byte[] storedVerifier)
+    {
+        var computedVerifier = ComputeVerifier(username, password, salt);
+        return CryptographicOperations.FixedTimeEquals(computedVerifier, storedVerifier);
+    }
+
     private static byte[] ToFixedLengthLittleEndian(BigInteger value, int length)
     {
         var bytes = value.ToByteArray(isUnsigned: true, isBigEndian: false);

@@ -19,10 +19,16 @@ var charactersConnectionString = builder.Configuration.GetValue<string>("Azeroth
     ?? throw new InvalidOperationException("AzerothCore:CharactersConnectionString is not configured.");
 builder.Services.AddSingleton(new CharacterRepository(charactersConnectionString));
 
+var worldConnectionString = builder.Configuration.GetValue<string>("AzerothCore:WorldConnectionString")
+    ?? throw new InvalidOperationException("AzerothCore:WorldConnectionString is not configured.");
+builder.Services.AddSingleton(new WorldRepository(worldConnectionString));
+builder.Services.AddSingleton(new AhBotRepository(worldConnectionString));
+
 var adminConnectionString = builder.Configuration.GetValue<string>("AzerothWebUI:AdminConnectionString")
     ?? throw new InvalidOperationException("AzerothWebUI:AdminConnectionString is not configured.");
 builder.Services.AddSingleton(new AdminUserRepository(adminConnectionString));
 builder.Services.AddSingleton<AdminAuthService>();
+builder.Services.AddSingleton<PlayerAuthService>();
 
 var soapUrl = builder.Configuration.GetValue<string>("AzerothCore:SoapUrl")
     ?? throw new InvalidOperationException("AzerothCore:SoapUrl is not configured.");
@@ -40,21 +46,32 @@ var moduleConfigDirectory = builder.Configuration.GetValue<string>("AzerothCore:
     ?? throw new InvalidOperationException("AzerothCore:ModuleConfigDirectory is not configured.");
 builder.Services.AddSingleton(new ConfigFileService(worldserverConfigPath, moduleConfigDirectory));
 
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+const string AdminScheme = "Admin";
+const string PlayerScheme = "Player";
+
+static void ConfigureAuthCookie(CookieAuthenticationOptions options, string cookieName)
+{
+    options.Cookie.Name = cookieName;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+    options.Events.OnRedirectToLogin = context =>
     {
-        options.Cookie.Name = "AzerothWebUI.Admin";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-        options.Events.OnRedirectToLogin = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        };
-    });
-builder.Services.AddAuthorization();
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+}
+
+builder.Services.AddAuthentication(AdminScheme)
+    .AddCookie(AdminScheme, options => ConfigureAuthCookie(options, "AzerothWebUI.Admin"))
+    .AddCookie(PlayerScheme, options => ConfigureAuthCookie(options, "AzerothWebUI.Player"));
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminScheme, policy => policy.AddAuthenticationSchemes(AdminScheme).RequireAuthenticatedUser());
+    options.AddPolicy(PlayerScheme, policy => policy.AddAuthenticationSchemes(PlayerScheme).RequireAuthenticatedUser());
+});
 
 var app = builder.Build();
 
@@ -118,8 +135,8 @@ app.MapPost("/api/admin/login", async (AdminLoginRequest request, AdminAuthServi
     }
 
     var claims = new List<Claim> { new(ClaimTypes.Name, user.Username) };
-    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-    await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+    var identity = new ClaimsIdentity(claims, AdminScheme);
+    await http.SignInAsync(AdminScheme, new ClaimsPrincipal(identity));
 
     return Results.Ok(new { username = user.Username });
 })
@@ -127,16 +144,119 @@ app.MapPost("/api/admin/login", async (AdminLoginRequest request, AdminAuthServi
 
 app.MapPost("/api/admin/logout", async (HttpContext http) =>
 {
-    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await http.SignOutAsync(AdminScheme);
     return Results.Ok();
 })
 .WithName("AdminLogout")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapGet("/api/admin/me", (ClaimsPrincipal user) =>
     Results.Ok(new { username = user.Identity!.Name }))
 .WithName("AdminMe")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
+
+app.MapPost("/api/player/login", async (PlayerLoginRequest request, PlayerAuthService auth, HttpContext http) =>
+{
+    var accountId = await auth.ValidateCredentialsAsync(request.Username, request.Password);
+    if (accountId is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var claims = new List<Claim>
+    {
+        new(ClaimTypes.Name, request.Username.ToUpperInvariant()),
+        new(ClaimTypes.NameIdentifier, accountId.Value.ToString()),
+    };
+    var identity = new ClaimsIdentity(claims, PlayerScheme);
+    await http.SignInAsync(PlayerScheme, new ClaimsPrincipal(identity));
+
+    return Results.Ok(new { username = request.Username.ToUpperInvariant() });
+})
+.WithName("PlayerLogin");
+
+app.MapPost("/api/player/logout", async (HttpContext http) =>
+{
+    await http.SignOutAsync(PlayerScheme);
+    return Results.Ok();
+})
+.WithName("PlayerLogout")
+.RequireAuthorization(PlayerScheme);
+
+app.MapGet("/api/player/me", async (HttpContext http) =>
+{
+    var result = await http.AuthenticateAsync(PlayerScheme);
+    return Results.Ok(new { username = result.Principal!.Identity!.Name });
+})
+.WithName("PlayerMe")
+.RequireAuthorization(PlayerScheme);
+
+app.MapGet("/api/armory/characters", async (string? q, CharacterRepository characters) =>
+{
+    if (string.IsNullOrWhiteSpace(q))
+    {
+        return Results.Ok(Array.Empty<CharacterSummary>());
+    }
+
+    return Results.Ok(await characters.SearchCharactersAsync(q));
+})
+.WithName("ArmorySearchCharacters");
+
+app.MapGet("/api/armory/characters/{name}", async (string name, CharacterRepository characters, WorldRepository world) =>
+{
+    var profile = await characters.FindCharacterProfileAsync(name);
+    if (profile is null)
+    {
+        return Results.NotFound($"Character '{name}' not found.");
+    }
+
+    var itemEntries = profile.Value.Equipped.Select(e => e.ItemEntry).Distinct().ToArray();
+    var items = await world.FindItemsAsync(itemEntries);
+
+    var equippedItems = profile.Value.Equipped
+        .Select(e => items.TryGetValue(e.ItemEntry, out var item)
+            ? new EquippedItem(e.Slot, e.ItemEntry, item.Name, item.Quality, item.DisplayId)
+            : new EquippedItem(e.Slot, e.ItemEntry, $"Unknown item #{e.ItemEntry}", 0, 0))
+        .ToList();
+
+    var detail = new CharacterDetail(
+        profile.Value.Guid,
+        profile.Value.Name,
+        profile.Value.Race,
+        profile.Value.Class,
+        profile.Value.Gender,
+        profile.Value.Level,
+        profile.Value.GuildName,
+        profile.Value.Online,
+        equippedItems);
+
+    return Results.Ok(detail);
+})
+.WithName("ArmoryGetCharacter");
+
+app.MapGet("/api/armory/items/search", async (string? q, WorldRepository world) =>
+{
+    if (string.IsNullOrWhiteSpace(q))
+    {
+        return Results.Ok(Array.Empty<ItemSearchResult>());
+    }
+
+    return Results.Ok(await world.SearchItemsAsync(q));
+})
+.WithName("ArmorySearchItems");
+
+app.MapGet("/api/armory/items/{id:int}", async (int id, WorldRepository world) =>
+{
+    var item = await world.FindItemAsync(id);
+    if (item is null)
+    {
+        return Results.NotFound($"Item #{id} not found.");
+    }
+
+    var dropSources = await world.FindDropSourcesAsync(id);
+    return Results.Ok(new { item, dropSources });
+})
+.WithName("ArmoryGetItem");
 
 app.MapGet("/api/admin/status", async (SoapClient soap) =>
 {
@@ -151,17 +271,17 @@ app.MapGet("/api/admin/status", async (SoapClient soap) =>
     }
 })
 .WithName("AdminServerStatus")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapGet("/api/admin/accounts", async (AccountRepository accounts) =>
     Results.Ok(await accounts.ListAccountsAsync()))
 .WithName("AdminListAccounts")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapGet("/api/admin/config/files", (ConfigFileService configFiles) =>
     Results.Ok(configFiles.ListFiles()))
 .WithName("AdminListConfigFiles")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapGet("/api/admin/config/{file}", async (string file, ConfigFileService configFiles) =>
 {
@@ -174,7 +294,7 @@ app.MapGet("/api/admin/config/{file}", async (string file, ConfigFileService con
     return Results.Ok(await configFiles.ReadEntriesAsync(entry));
 })
 .WithName("AdminGetConfig")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapPatch("/api/admin/config/{file}/{key}", async (string file, string key, UpdateConfigValueRequest request, ConfigFileService configFiles, SoapClient soap) =>
 {
@@ -216,7 +336,7 @@ app.MapPatch("/api/admin/config/{file}/{key}", async (string file, string key, U
     }
 })
 .WithName("AdminUpdateConfig")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapPost("/api/admin/accounts/{username}/ban", async (string username, SoapClient soap) =>
 {
@@ -231,7 +351,7 @@ app.MapPost("/api/admin/accounts/{username}/ban", async (string username, SoapCl
     }
 })
 .WithName("AdminBanAccount")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapPost("/api/admin/accounts/{username}/unban", async (string username, SoapClient soap) =>
 {
@@ -246,7 +366,7 @@ app.MapPost("/api/admin/accounts/{username}/unban", async (string username, Soap
     }
 })
 .WithName("AdminUnbanAccount")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
 
 app.MapPost("/api/admin/accounts/{username}/kick", async (string username, AccountRepository accounts, CharacterRepository characters, SoapClient soap) =>
 {
@@ -273,7 +393,73 @@ app.MapPost("/api/admin/accounts/{username}/kick", async (string username, Accou
     }
 })
 .WithName("AdminKickAccount")
-.RequireAuthorization();
+.RequireAuthorization(AdminScheme);
+
+app.MapGet("/api/admin/ahbot/houses", async (AhBotRepository ahBot) =>
+    Results.Ok(await ahBot.ListHousesAsync()))
+.WithName("AdminListAhBotHouses")
+.RequireAuthorization(AdminScheme);
+
+app.MapPut("/api/admin/ahbot/houses/{auctionHouse:int}", async (int auctionHouse, AhBotHouse settings, AhBotRepository ahBot) =>
+{
+    var updated = await ahBot.UpdateHouseAsync(auctionHouse, settings);
+    return updated ? Results.Ok() : Results.NotFound($"Auction house {auctionHouse} not found.");
+})
+.WithName("AdminUpdateAhBotHouse")
+.RequireAuthorization(AdminScheme);
+
+app.MapGet("/api/admin/ahbot/disabled-items", async (AhBotRepository ahBot) =>
+    Results.Ok(await ahBot.ListDisabledItemsAsync()))
+.WithName("AdminListAhBotDisabledItems")
+.RequireAuthorization(AdminScheme);
+
+app.MapPost("/api/admin/ahbot/disabled-items/{itemId:int}", async (int itemId, AhBotRepository ahBot) =>
+{
+    await ahBot.AddDisabledItemAsync(itemId);
+    return Results.Created();
+})
+.WithName("AdminAddAhBotDisabledItem")
+.RequireAuthorization(AdminScheme);
+
+app.MapDelete("/api/admin/ahbot/disabled-items/{itemId:int}", async (int itemId, AhBotRepository ahBot) =>
+{
+    await ahBot.RemoveDisabledItemAsync(itemId);
+    return Results.Ok();
+})
+.WithName("AdminRemoveAhBotDisabledItem")
+.RequireAuthorization(AdminScheme);
+
+app.MapPost("/api/admin/items/award", async (AwardItemRequest request, SoapClient soap) =>
+{
+    if (string.IsNullOrWhiteSpace(request.CharacterName))
+    {
+        return Results.BadRequest("Character name is required.");
+    }
+
+    if (request.ItemId <= 0 || request.Count <= 0)
+    {
+        return Results.BadRequest("Item id and count must be positive.");
+    }
+
+    // .send items (not .additem) - .additem requires the target to be online and selected,
+    // which isn't possible over SOAP; .send items is DB-persisted mail delivery that works
+    // regardless of whether the character is currently logged in.
+    var subject = string.IsNullOrWhiteSpace(request.Subject) ? "Item Delivery" : request.Subject;
+    var message = string.IsNullOrWhiteSpace(request.Message) ? "An item has been sent to you by an administrator." : request.Message;
+
+    try
+    {
+        var output = await soap.ExecuteCommandAsync(
+            $".send items {request.CharacterName} \"{subject}\" \"{message}\" {request.ItemId}:{request.Count}");
+        return Results.Ok(new { result = output });
+    }
+    catch (SoapCommandException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("AdminAwardItem")
+.RequireAuthorization(AdminScheme);
 
 app.MapFallbackToFile("index.html");
 

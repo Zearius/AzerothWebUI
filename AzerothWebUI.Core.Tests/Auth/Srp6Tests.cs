@@ -56,4 +56,37 @@ public class Srp6Tests
 
         Assert.NotEqual(verifierA, verifierB);
     }
+
+    [Fact]
+    public void VerifyPassword_AcceptsCorrectPassword()
+    {
+        var salt = Srp6.GenerateSalt();
+        var verifier = Srp6.ComputeVerifier("PLAYERONE", "correct-password", salt);
+
+        var result = Srp6.VerifyPassword("PLAYERONE", "correct-password", salt, verifier);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void VerifyPassword_RejectsWrongPassword()
+    {
+        var salt = Srp6.GenerateSalt();
+        var verifier = Srp6.ComputeVerifier("PLAYERONE", "correct-password", salt);
+
+        var result = Srp6.VerifyPassword("PLAYERONE", "wrong-password", salt, verifier);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void VerifyPassword_IsCaseInsensitiveOnInputLikeComputeVerifier()
+    {
+        var salt = Srp6.GenerateSalt();
+        var verifier = Srp6.ComputeVerifier("PLAYERONE", "correct-password", salt);
+
+        var result = Srp6.VerifyPassword("playerone", "CORRECT-PASSWORD", salt, verifier);
+
+        Assert.True(result);
+    }
 }

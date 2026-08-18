@@ -56,6 +56,7 @@ function ConfigRow({
       ) : (
         <div className="config-text-input">
           <input
+            className="input"
             type="text"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -63,7 +64,7 @@ function ConfigRow({
           />
           <button
             type="button"
-            className="counter"
+            className="btn btn-sm btn-primary"
             disabled={saving || !dirty}
             onClick={() => save(draft)}
           >
@@ -150,7 +151,7 @@ function AdminConfig() {
     <section>
       <div className="page-header">
         <h2>Config</h2>
-        <button type="button" className="counter" onClick={() => load(activeFile)} disabled={loading}>
+        <button type="button" className="btn btn-secondary" onClick={() => load(activeFile)} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -176,7 +177,7 @@ function AdminConfig() {
 
       <input
         type="text"
-        className="config-search"
+        className="input config-search"
         placeholder="Search settings…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}

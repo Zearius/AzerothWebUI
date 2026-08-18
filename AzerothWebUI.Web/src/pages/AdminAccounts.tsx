@@ -38,7 +38,7 @@ function AdminAccounts() {
     <section>
       <div className="page-header">
         <h2>Accounts</h2>
-        <button type="button" className="counter" onClick={load} disabled={loading}>
+        <button type="button" className="btn btn-secondary" onClick={load} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -69,7 +69,7 @@ function AdminAccounts() {
                 <td className="account-actions">
                   <button
                     type="button"
-                    className="counter"
+                    className={`btn btn-sm ${account.banned ? 'btn-secondary' : 'btn-destructive'}`}
                     disabled={busyUsername === account.username}
                     onClick={() => runAction(account.username, account.banned ? 'unban' : 'ban')}
                   >
@@ -77,7 +77,7 @@ function AdminAccounts() {
                   </button>
                   <button
                     type="button"
-                    className="counter"
+                    className="btn btn-sm btn-secondary"
                     disabled={busyUsername === account.username || !account.online}
                     onClick={() => runAction(account.username, 'kick')}
                   >

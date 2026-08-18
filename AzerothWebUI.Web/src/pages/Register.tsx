@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PublicHeader from '../PublicHeader'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -49,67 +50,74 @@ function Register() {
   }
 
   return (
-    <section id="center">
-      <div>
-        <h1>Create Account</h1>
-        <p>Register a new account for the server.</p>
-      </div>
+    <>
+      <PublicHeader />
+      <section id="center">
+        <div>
+          <h1>Create Account</h1>
+          <p>Register a new account for the server.</p>
+        </div>
 
-      <form className="stack-form" onSubmit={handleSubmit}>
-        <label>
-          Username
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
+        <form className="stack-form" onSubmit={handleSubmit}>
+          <label>
+            Username
+            <input
+              className="input"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              maxLength={16}
+              required
+            />
+          </label>
 
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
+          <label>
+            Email
+            <input
+              className="input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
 
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
+          <label>
+            Password
+            <input
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              maxLength={16}
+              required
+            />
+          </label>
 
-        <label>
-          Confirm password
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            maxLength={16}
-            required
-          />
-        </label>
+          <label>
+            Confirm password
+            <input
+              className="input"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              maxLength={16}
+              required
+            />
+          </label>
 
-        <button type="submit" className="counter" disabled={status === 'submitting'}>
-          {status === 'submitting' ? 'Creating…' : 'Create Account'}
-        </button>
+          <button type="submit" className="btn btn-primary" disabled={status === 'submitting'}>
+            {status === 'submitting' ? 'Creating…' : 'Create Account'}
+          </button>
 
-        {message && (
-          <p className={status === 'success' ? 'form-message success' : 'form-message error'}>
-            {message}
-          </p>
-        )}
-      </form>
-    </section>
+          {message && (
+            <p className={status === 'success' ? 'form-message success' : 'form-message error'}>
+              {message}
+            </p>
+          )}
+        </form>
+      </section>
+    </>
   )
 }
 

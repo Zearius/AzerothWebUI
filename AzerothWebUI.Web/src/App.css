@@ -140,6 +140,21 @@
   }
 }
 
+.auth-switch {
+  font-size: 13px;
+  color: var(--text);
+  text-align: center;
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
 .form-message {
   font-size: 13px;
   text-align: center;

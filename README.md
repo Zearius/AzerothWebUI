@@ -18,6 +18,11 @@ eye toward eventually shipping as an optional container in that project's docker
 3. **Armory** — read-only character/item lookup against `acore_characters` + `acore_world`.
 4. **Server stats** — online players, uptime, and whatever else is worth surfacing from SOAP
    `server info`-style commands plus data we choose to log over time.
+5. **Config editor** — metadata-aware editing of `worldserver.conf` and module configs, with
+   reload behavior classified per key (hot-reload via SOAP vs. restart-required). **Hot-reloadable
+   `worldserver.conf` keys implemented** (toggle/text UI, targeted single-line file rewrite,
+   automatic SOAP `reload config`); restart-required keys and module configs are intentionally
+   not editable yet.
 
 ## Architecture
 
@@ -65,4 +70,9 @@ registration-created account with the game client.
 The admin panel's login, server status, and account management (list/ban/unban/kick) are also
 implemented and verified end-to-end against a live AzerothCore stack, including a minimal SOAP
 client (`AzerothWebUI.Core/Soap`). Admin identities live in a separate `azerothwebui` database,
-independent of WoW account credentials. Armory and richer bot management are not yet built.
+independent of WoW account credentials.
+
+The config editor's hot-reloadable `worldserver.conf` slice is implemented and verified
+end-to-end: toggling a setting through the UI writes the file, fires a live SOAP reload, and was
+confirmed to take effect in-game. Restart-required keys and all module configs are deliberately
+excluded from this first pass. Armory and richer bot management are not yet built.

@@ -36,7 +36,9 @@ builder.Services.AddSingleton(sp => new SoapClient(
 
 var worldserverConfigPath = builder.Configuration.GetValue<string>("AzerothCore:WorldserverConfigPath")
     ?? throw new InvalidOperationException("AzerothCore:WorldserverConfigPath is not configured.");
-builder.Services.AddSingleton<IConfigFileStore>(new FileSystemConfigFileStore(worldserverConfigPath));
+var moduleConfigDirectory = builder.Configuration.GetValue<string>("AzerothCore:ModuleConfigDirectory")
+    ?? throw new InvalidOperationException("AzerothCore:ModuleConfigDirectory is not configured.");
+builder.Services.AddSingleton(new ConfigFileService(worldserverConfigPath, moduleConfigDirectory));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -154,38 +156,57 @@ app.MapGet("/api/admin/accounts", async (AccountRepository accounts) =>
 .WithName("AdminListAccounts")
 .RequireAuthorization();
 
-app.MapGet("/api/admin/config", async (IConfigFileStore configStore) =>
+app.MapGet("/api/admin/config/files", (ConfigFileService configFiles) =>
+    Results.Ok(configFiles.ListFiles()))
+.WithName("AdminListConfigFiles")
+.RequireAuthorization();
+
+app.MapGet("/api/admin/config/{file}", async (string file, ConfigFileService configFiles) =>
 {
-    var content = await configStore.ReadAllTextAsync();
-    var entries = WorldserverConfigParser.Parse(content)
-        .Where(e => !RestartRequiredKeys.Keys.Contains(e.Key))
-        .ToList();
-    return Results.Ok(entries);
+    var entry = configFiles.FindEntry(file);
+    if (entry is null)
+    {
+        return Results.NotFound($"Unknown config file '{file}'.");
+    }
+
+    return Results.Ok(await configFiles.ReadEntriesAsync(entry));
 })
 .WithName("AdminGetConfig")
 .RequireAuthorization();
 
-app.MapPatch("/api/admin/config/{key}", async (string key, UpdateConfigValueRequest request, IConfigFileStore configStore, SoapClient soap) =>
+app.MapPatch("/api/admin/config/{file}/{key}", async (string file, string key, UpdateConfigValueRequest request, ConfigFileService configFiles, SoapClient soap) =>
 {
-    if (RestartRequiredKeys.Keys.Contains(key))
+    var fileEntry = configFiles.FindEntry(file);
+    if (fileEntry is null)
     {
-        return Results.BadRequest($"'{key}' requires a worldserver restart and cannot be edited here.");
+        return Results.NotFound($"Unknown config file '{file}'.");
     }
 
-    var content = await configStore.ReadAllTextAsync();
+    var requiresRestart = fileEntry.Descriptor.AlwaysRestartRequired || RestartRequiredKeys.Keys.Contains(key);
+
+    var store = configFiles.GetStore(fileEntry);
+    var content = await store.ReadAllTextAsync();
     var updatedContent = WorldserverConfigWriter.SetValue(content, key, request.Value);
     if (updatedContent is null)
     {
-        return Results.NotFound($"Config key '{key}' was not found.");
+        return Results.NotFound($"Config key '{key}' was not found in '{file}'.");
     }
 
-    await configStore.WriteAllTextAsync(updatedContent);
+    await store.WriteAllTextAsync(updatedContent);
+
+    var updatedEntry = fileEntry.Parser(updatedContent).FirstOrDefault(e => e.Key == key) is { } parsed
+        ? parsed with { SourceFile = fileEntry.Descriptor.DisplayName, RequiresRestart = requiresRestart }
+        : null;
+
+    if (requiresRestart)
+    {
+        return Results.Ok(new { entry = updatedEntry, requiresRestart = true, reloadResult = (string?)null });
+    }
 
     try
     {
         var reloadOutput = await soap.ExecuteCommandAsync("reload config");
-        var entry = WorldserverConfigParser.Parse(updatedContent).FirstOrDefault(e => e.Key == key);
-        return Results.Ok(new { entry, reloadResult = reloadOutput });
+        return Results.Ok(new { entry = updatedEntry, requiresRestart = false, reloadResult = reloadOutput });
     }
     catch (SoapCommandException ex)
     {

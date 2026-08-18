@@ -80,7 +80,7 @@ public class WorldRepository(string worldConnectionString)
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT entry, name, Quality, displayid
+            SELECT entry, name, Quality, displayid, ItemLevel
             FROM item_template
             WHERE name LIKE @term
             ORDER BY name
@@ -97,7 +97,8 @@ public class WorldRepository(string worldConnectionString)
                 reader.GetInt32(0),
                 reader.GetString(1),
                 reader.GetByte(2),
-                reader.GetInt32(3)));
+                reader.GetInt32(3),
+                reader.GetInt32(4)));
         }
 
         return results;
@@ -216,7 +217,7 @@ public class WorldRepository(string worldConnectionString)
         await using var command = connection.CreateCommand();
         var parameterNames = itemIds.Select((_, i) => $"@id{i}").ToArray();
         command.CommandText = $"""
-            SELECT entry, name, Quality, displayid
+            SELECT entry, name, Quality, displayid, ItemLevel
             FROM item_template
             WHERE entry IN ({string.Join(",", parameterNames)})
             """;
@@ -231,7 +232,7 @@ public class WorldRepository(string worldConnectionString)
         while (await reader.ReadAsync())
         {
             var entry = reader.GetInt32(0);
-            results[entry] = new ItemSearchResult(entry, reader.GetString(1), reader.GetByte(2), reader.GetInt32(3));
+            results[entry] = new ItemSearchResult(entry, reader.GetString(1), reader.GetByte(2), reader.GetInt32(3), reader.GetInt32(4));
         }
 
         return results;

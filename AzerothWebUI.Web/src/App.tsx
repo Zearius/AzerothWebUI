@@ -23,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Register />} />
           <Route path="/login" element={<PlayerLogin />} />
+          <Route path="/armory" element={<Navigate to="/armory/characters" replace />} />
           <Route path="/armory/characters" element={<ArmoryCharacters />} />
           <Route path="/armory/characters/:name" element={<ArmoryCharacterDetail />} />
           <Route path="/armory/items" element={<ArmoryItemSearch />} />

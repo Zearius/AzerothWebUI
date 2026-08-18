@@ -60,6 +60,34 @@ export function equipmentSlotName(slot: number): string {
   return EQUIPMENT_SLOTS[slot] ?? `Slot ${slot}`
 }
 
+// Left/right paperdoll columns, in the classic in-game character-sheet order.
+export const EQUIPMENT_LEFT_COLUMN = [0, 1, 2, 14, 4, 3, 8, 5, 6, 9]
+export const EQUIPMENT_RIGHT_COLUMN = [10, 11, 12, 13, 15, 16, 17, 18]
+
+const ALLIANCE_RACES = new Set([1, 3, 4, 7, 11])
+
+export function factionName(race: number): 'Alliance' | 'Horde' {
+  return ALLIANCE_RACES.has(race) ? 'Alliance' : 'Horde'
+}
+
+// class_dbc-derived color palette (standard WoW class colors).
+const CLASS_COLORS: Record<number, string> = {
+  1: '#C69B6D',
+  2: '#F58CBA',
+  3: '#ABD473',
+  4: '#FFF569',
+  5: '#FFFFFF',
+  6: '#C41F3B',
+  7: '#0070DE',
+  8: '#69CCF0',
+  9: '#9482C9',
+  11: '#FF7D0A',
+}
+
+export function classColor(wowClass: number): string {
+  return CLASS_COLORS[wowClass] ?? 'var(--text-h)'
+}
+
 // item_template stat_type enum (ItemModType).
 const STAT_TYPE_NAMES: Record<number, string> = {
   0: 'Mana',

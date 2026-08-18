@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 import { usePlayerAuth } from '../PlayerAuthContext'
 import PublicHeader from '../PublicHeader'
 
@@ -8,8 +8,12 @@ function PlayerLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const { login } = usePlayerAuth()
+  const { username: loggedInUsername, loading, login } = usePlayerAuth()
   const navigate = useNavigate()
+
+  if (!loading && loggedInUsername) {
+    return <Navigate to="/armory/characters" replace />
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,7 +34,7 @@ function PlayerLogin() {
     <>
       <PublicHeader />
       <section id="center">
-        <div>
+        <div className="center-heading">
           <h1>Log In</h1>
           <p>Sign in with your account to view your characters.</p>
         </div>
@@ -66,6 +70,9 @@ function PlayerLogin() {
 
           <p className="auth-switch">
             New here? <Link to="/">Create an account</Link>
+          </p>
+          <p className="auth-switch">
+            Server admin? <Link to="/admin/login">Log in here</Link>
           </p>
         </form>
       </section>

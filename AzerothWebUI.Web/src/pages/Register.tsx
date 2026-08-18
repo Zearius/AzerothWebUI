@@ -54,7 +54,7 @@ function Register() {
     <>
       <PublicHeader />
       <section id="center">
-        <div>
+        <div className="center-heading">
           <h1>Create Account</h1>
           <p>Register a new account for the server.</p>
         </div>

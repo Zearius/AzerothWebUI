@@ -1,4 +1,5 @@
 import { request } from './apiClient'
+import type { CharacterSummary } from './armoryApi'
 
 export type AdminAccount = {
   id: number
@@ -51,6 +52,8 @@ export const adminApi = {
   me: () => request<{ username: string }>('/api/admin/me'),
   status: () => request<ServerStatus>('/api/admin/status'),
   accounts: () => request<AdminAccount[]>('/api/admin/accounts'),
+  accountCharacters: (username: string) =>
+    request<CharacterSummary[]>(`/api/admin/accounts/${encodeURIComponent(username)}/characters`),
   ban: (username: string) =>
     request<{ result: string }>(`/api/admin/accounts/${encodeURIComponent(username)}/ban`, { method: 'POST' }),
   unban: (username: string) =>
@@ -63,5 +66,10 @@ export const adminApi = {
     request<UpdateConfigResult>(`/api/admin/config/${encodeURIComponent(file)}/${encodeURIComponent(key)}`, {
       method: 'PATCH',
       body: JSON.stringify({ value }),
+    }),
+  updateMotd: (content: string) =>
+    request<{ content: string }>('/api/admin/motd', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
     }),
 }

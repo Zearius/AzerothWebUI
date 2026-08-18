@@ -10,6 +10,7 @@ import AdminAccounts from './pages/AdminAccounts'
 import AdminConfig from './pages/AdminConfig'
 import AdminAhBot from './pages/AdminAhBot'
 import AdminAwardItem from './pages/AdminAwardItem'
+import AdminMotd from './pages/AdminMotd'
 import ArmoryCharacters from './pages/ArmoryCharacters'
 import ArmoryCharacterDetail from './pages/ArmoryCharacterDetail'
 import ArmoryItemSearch from './pages/ArmoryItemSearch'
@@ -36,6 +37,7 @@ function App() {
             <Route path="config" element={<AdminConfig />} />
             <Route path="ahbot" element={<AdminAhBot />} />
             <Route path="award-item" element={<AdminAwardItem />} />
+            <Route path="motd" element={<AdminMotd />} />
           </Route>
         </Routes>
       </PlayerAuthProvider>

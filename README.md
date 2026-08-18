@@ -17,10 +17,14 @@ alongside it, sharing its network and config volume.
 - **Armory** — public character browsing (equipped gear, level, guild) and item lookup, including
   every drop source an item has (creature loot, fishing, gameobjects, skinning, disenchanting,
   and more).
+- **Public server status & message of the day** — a safe, admin-curated summary (players online,
+  characters in world, uptime) plus an admin-editable Markdown announcement, both shown to every
+  visitor without requiring login.
 - **Admin panel** — its own login, completely separate from WoW account credentials. Server
-  status, account management (ban/unban/kick), and a searchable, metadata-aware editor for
-  `worldserver.conf` and module config files that explains what each setting does and whether a
-  change applies live or needs a restart.
+  status, account management (ban/unban/kick, with a drill-down to each account's characters), a
+  searchable, metadata-aware editor for `worldserver.conf` and module config files that explains
+  what each setting does and whether a change applies live or needs a restart, and the message of
+  the day editor.
 - **AH Bot settings** — an editor for the Auction House Bot module's stocking and pricing rates
   and its disabled-item list, both of which live in the database rather than a config file.
 - **Award Item** — search for an item and mail it to any character by name, whether or not
@@ -81,9 +85,10 @@ for player login, `http://localhost:8080/armory/characters` for the armory, or
    AzerothCore stack's directory as `docker-compose.override.yml`, and fill in real connection
    strings and SOAP credentials.
 2. Build the image: `docker build -t azerothwebui .`
-3. Apply the admin database migration against the stack's database container:
+3. Apply the admin database migrations against the stack's database container:
    ```
    docker compose exec -T ac-database mysql -uroot -p<password> < AzerothWebUI.Api/Sql/001_create_admin_db.sql
+   docker compose exec -T ac-database mysql -uroot -p<password> < AzerothWebUI.Api/Sql/002_create_motd.sql
    ```
 4. Provision a dedicated GM SOAP account (never reuse a personal account) and a first admin login
    using `AzerothWebUI.Tools`:

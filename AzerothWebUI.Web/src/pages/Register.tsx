@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import PublicHeader from '../PublicHeader'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
@@ -115,6 +116,10 @@ function Register() {
               {message}
             </p>
           )}
+
+          <p className="auth-switch">
+            Already have an account? <Link to="/login">Log in</Link>
+          </p>
         </form>
       </section>
     </>

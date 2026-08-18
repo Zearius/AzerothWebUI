@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { usePlayerAuth } from '../PlayerAuthContext'
 import PublicHeader from '../PublicHeader'
 
@@ -18,7 +18,7 @@ function PlayerLogin() {
 
     try {
       await login(username, password)
-      navigate('/armory')
+      navigate('/armory/characters')
     } catch {
       setError('Invalid username or password.')
     } finally {
@@ -63,6 +63,10 @@ function PlayerLogin() {
           </button>
 
           {error && <p className="form-message error">{error}</p>}
+
+          <p className="auth-switch">
+            New here? <Link to="/">Create an account</Link>
+          </p>
         </form>
       </section>
     </>

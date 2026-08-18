@@ -19,10 +19,11 @@ eye toward eventually shipping as an optional container in that project's docker
 4. **Server stats** — online players, uptime, and whatever else is worth surfacing from SOAP
    `server info`-style commands plus data we choose to log over time.
 5. **Config editor** — metadata-aware editing of `worldserver.conf` and module configs, with
-   reload behavior classified per key (hot-reload via SOAP vs. restart-required). **Hot-reloadable
-   `worldserver.conf` keys implemented** (toggle/text UI, targeted single-line file rewrite,
-   automatic SOAP `reload config`); restart-required keys and module configs are intentionally
-   not editable yet.
+   reload behavior classified per key (hot-reload via SOAP vs. restart-required). **Implemented**:
+   all of `worldserver.conf` (hot-reloadable keys apply live via SOAP `reload config`;
+   restart-required keys are saved and clearly badged) plus all five module configs
+   (`playerbots.conf`, `mod_ahbot.conf`, `mod_talentbutton.conf`, `mod_ale.conf`,
+   `mod_aoe_loot.conf`, always restart-required per module design), browsable by file tab.
 
 ## Architecture
 
@@ -72,7 +73,9 @@ implemented and verified end-to-end against a live AzerothCore stack, including 
 client (`AzerothWebUI.Core/Soap`). Admin identities live in a separate `azerothwebui` database,
 independent of WoW account credentials.
 
-The config editor's hot-reloadable `worldserver.conf` slice is implemented and verified
-end-to-end: toggling a setting through the UI writes the file, fires a live SOAP reload, and was
-confirmed to take effect in-game. Restart-required keys and all module configs are deliberately
-excluded from this first pass. Armory and richer bot management are not yet built.
+The config editor is fully implemented and verified end-to-end across `worldserver.conf`
+(hot-reloadable and restart-required keys) and all five module config files, each parsed with a
+format-fitted parser (`AzerothWebUI.Core/Config`) after discovering the module files use three
+different comment conventions. No restart-trigger UI exists yet — restart-required saves are
+clearly flagged but an admin still restarts the worldserver themselves. Armory and richer bot
+management are not yet built.

@@ -8,6 +8,8 @@ Runs as a single Docker container that drops into an existing AzerothCore docker
 (e.g. `wow-server-playerbots`, built for [Dad's MMO Lab](https://github.com/DadsMmoLab/dads-mmo-lab))
 alongside it, sharing its network and config volume.
 
+![Config editor screenshot](docs/screenshot-config.png)
+
 ## Features
 
 - **Public account registration** — self-service signup that creates a real `acore_auth`

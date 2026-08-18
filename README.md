@@ -38,6 +38,47 @@ eye toward eventually shipping as an optional container in that project's docker
 Registration and the armory/stats views only need MySQL. Admin actions additionally require
 `SOAP.Enabled = 1` in the target server's `worldserver.conf` and a GM SOAP account.
 
+## Run with Docker
+
+The intended deployment: a single container running the API and the built React app together,
+added to the target AzerothCore docker-compose stack (e.g. `wow-server-playerbots`) so it shares
+that stack's `ac-network` and `env/dist/etc` volume — no separate install of .NET/Node needed on
+the host.
+
+```
+docker build -t azerothwebui .
+```
+
+1. Copy [`docker-compose.override.yml.example`](docker-compose.override.yml.example) into the
+   target stack's directory as `docker-compose.override.yml`, and fill in
+   `AzerothCore__SoapUsername`/`AzerothCore__SoapPassword` with a dedicated GM SOAP account (see
+   "Local development" below for how to provision one — never reuse a personal account).
+2. Apply the admin database migration against the stack's `ac-database`:
+   ```
+   docker compose exec -T ac-database mysql -uroot -p<password> < AzerothWebUI.Api/Sql/001_create_admin_db.sql
+   ```
+3. Seed the first admin user. There's no seeding endpoint in a production container (the
+   `/api/dev/seed-admin` endpoint only exists when `ASPNETCORE_ENVIRONMENT=Development`, by
+   design) — instead, generate a compatible password hash once from a local clone with the .NET
+   SDK installed, reusing the app's actual `AdminAuthService`/`PasswordHasher` so the hash is
+   guaranteed compatible (ASP.NET Core Identity's PBKDF2 format isn't practical to
+   hand-reproduce correctly). `AzerothWebUI.Core` is a library, so run it via a throwaway xUnit
+   test in `AzerothWebUI.Core.Tests` (delete the test afterwards):
+   ```csharp
+   [Fact]
+   public void PrintAdminHash()
+   {
+       var hash = new AdminAuthService(null!).HashPassword("your-password-here");
+       throw new Exception($"INSERT INTO azerothwebui.AdminUsers (Username, PasswordHash) VALUES ('admin', '{hash}');");
+   }
+   ```
+   `dotnet test --filter PrintAdminHash` prints the `INSERT` statement in the failure output
+   (the `throw` is just a convenient way to print and exit — not a real assertion). Run the
+   printed statement against `ac-database`'s `azerothwebui` database (same `mysql` command shape
+   as step 2).
+4. `docker compose up -d azerothwebui`, then visit `http://localhost:8080` (registration) or
+   `http://localhost:8080/admin/login` (admin panel).
+
 ## Local development
 
 Requires .NET 10 SDK, Node 24+, and a running AzerothCore server (e.g. the
@@ -79,3 +120,10 @@ format-fitted parser (`AzerothWebUI.Core/Config`) after discovering the module f
 different comment conventions. No restart-trigger UI exists yet — restart-required saves are
 clearly flagged but an admin still restarts the worldserver themselves. Armory and richer bot
 management are not yet built.
+
+Containerization (single-image, multi-stage `Dockerfile`) is implemented and verified end-to-end
+against the live local `wow-server-playerbots` stack: built the image, joined it to the stack's
+`ac-network`, mounted the same `env/dist/etc` volume `ac-worldserver` uses, and confirmed
+registration, admin login, live status, and a real config file read/write all work through the
+container using container-DNS connection strings instead of `127.0.0.1`. No CI/publishing
+pipeline yet — local `docker build` only.

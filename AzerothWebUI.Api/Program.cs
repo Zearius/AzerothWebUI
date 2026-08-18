@@ -64,6 +64,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -272,5 +274,7 @@ app.MapPost("/api/admin/accounts/{username}/kick", async (string username, Accou
 })
 .WithName("AdminKickAccount")
 .RequireAuthorization();
+
+app.MapFallbackToFile("index.html");
 
 app.Run();

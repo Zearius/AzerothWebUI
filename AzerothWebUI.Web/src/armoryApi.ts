@@ -16,6 +16,7 @@ export type EquippedItem = {
   name: string
   quality: number
   displayId: number
+  itemLevel: number
 }
 
 export type CharacterDetail = CharacterSummary & {
@@ -28,6 +29,7 @@ export type ItemSearchResult = {
   name: string
   quality: number
   displayId: number
+  itemLevel: number
 }
 
 export type ItemStat = {

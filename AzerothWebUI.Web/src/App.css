@@ -589,6 +589,31 @@
   color: #00ccff;
 }
 
+.q-border-0 {
+  border-color: #9d9d9d !important;
+}
+.q-border-1 {
+  border-color: var(--border) !important;
+}
+.q-border-2 {
+  border-color: #1eff00 !important;
+}
+.q-border-3 {
+  border-color: #0070dd !important;
+}
+.q-border-4 {
+  border-color: #a335ee !important;
+}
+.q-border-5 {
+  border-color: #ff8000 !important;
+}
+.q-border-6 {
+  border-color: #e6cc80 !important;
+}
+.q-border-7 {
+  border-color: #00ccff !important;
+}
+
 /* Public nav */
 
 .public-nav {
@@ -700,28 +725,214 @@
   font-size: 14px;
 }
 
-.equipment-grid {
+/* Character banner: faction badge, name/meta, average item level */
+
+.armory-character-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--border);
+
+  &.faction-alliance {
+    border-left-color: #1f5fb2;
+  }
+
+  &.faction-horde {
+    border-left-color: #b3221b;
+  }
+}
+
+.faction-badge {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.faction-badge-alliance {
+  background: linear-gradient(135deg, #2c6fc9, #1a3f80);
+}
+
+.faction-badge-horde {
+  background: linear-gradient(135deg, #c9302c, #6b0f0c);
+}
+
+.faction-badge::after {
+  content: '';
+}
+
+.faction-badge-alliance::before {
+  content: 'A';
+}
+
+.faction-badge-horde::before {
+  content: 'H';
+}
+
+.armory-character-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-grow: 1;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.armory-ilvl-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.armory-ilvl-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-h);
+  line-height: 1;
+}
+
+.armory-ilvl-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+/* Paperdoll: two-column classic equipment layout */
+
+.paperdoll {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-5);
+}
+
+.paperdoll-column {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
 }
 
 .equipment-slot {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+}
+
+.equipment-slot-empty {
+  background: var(--bg);
+  border-style: dashed;
+  box-shadow: none;
+  min-height: 46px;
+}
+
+.equipment-slot-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.equipment-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex-grow: 1;
 }
 
 .equipment-slot-label {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text);
+}
+
+.equipment-slot-ilvl {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .paperdoll {
+    grid-template-columns: 1fr;
+  }
+}
+
+.item-card {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.item-card-icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.item-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.item-card-quality {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.item-card-description {
+  margin-top: var(--space-2);
+  color: var(--text);
+  font-style: italic;
 }
 
 .item-stats {

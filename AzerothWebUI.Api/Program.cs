@@ -215,8 +215,8 @@ app.MapGet("/api/armory/characters/{name}", async (string name, CharacterReposit
 
     var equippedItems = profile.Value.Equipped
         .Select(e => items.TryGetValue(e.ItemEntry, out var item)
-            ? new EquippedItem(e.Slot, e.ItemEntry, item.Name, item.Quality, item.DisplayId)
-            : new EquippedItem(e.Slot, e.ItemEntry, $"Unknown item #{e.ItemEntry}", 0, 0))
+            ? new EquippedItem(e.Slot, e.ItemEntry, item.Name, item.Quality, item.DisplayId, item.ItemLevel)
+            : new EquippedItem(e.Slot, e.ItemEntry, $"Unknown item #{e.ItemEntry}", 0, 0, 0))
         .ToList();
 
     var detail = new CharacterDetail(

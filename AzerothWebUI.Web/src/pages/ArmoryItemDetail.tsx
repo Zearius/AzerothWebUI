@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { armoryApi, type ItemDetailResult } from '../armoryApi'
-import { qualityClass, dropSourceLabel } from '../itemQuality'
+import { qualityClass, qualityName, dropSourceLabel } from '../itemQuality'
 import { statTypeName } from '../wowEnums'
 import PublicHeader from '../PublicHeader'
 
@@ -46,25 +46,31 @@ function ArmoryItemDetail() {
 
         {result && (
           <>
-            <div className="armory-detail-header">
-              <h1 className={qualityClass(result.item.quality)}>{result.item.name}</h1>
-              <span className="armory-detail-meta">
-                Item Level {result.item.itemLevel}
-                {result.item.requiredLevel > 0 ? ` · Requires Level ${result.item.requiredLevel}` : ''}
-              </span>
-            </div>
+            <div className={`item-card q-border-${result.item.quality}`}>
+              <div className={`item-card-icon q-border-${result.item.quality}`} />
+              <div className="item-card-info">
+                <h1 className={qualityClass(result.item.quality)}>{result.item.name}</h1>
+                <span className={`item-card-quality ${qualityClass(result.item.quality)}`}>
+                  {qualityName(result.item.quality)}
+                </span>
+                <span className="armory-detail-meta">
+                  Item Level {result.item.itemLevel}
+                  {result.item.requiredLevel > 0 ? ` · Requires Level ${result.item.requiredLevel}` : ''}
+                </span>
 
-            {result.item.description && <p>{result.item.description}</p>}
+                {result.item.stats.length > 0 && (
+                  <div className="item-stats">
+                    {result.item.stats.map((stat) => (
+                      <span key={stat.type}>
+                        +{stat.value} {statTypeName(stat.type)}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-            {result.item.stats.length > 0 && (
-              <div className="item-stats">
-                {result.item.stats.map((stat) => (
-                  <span key={stat.type}>
-                    +{stat.value} {statTypeName(stat.type)}
-                  </span>
-                ))}
+                {result.item.description && <p className="item-card-description">{result.item.description}</p>}
               </div>
-            )}
+            </div>
 
             <h2 style={{ marginTop: '24px' }}>Where to find it</h2>
             {groupedDropSources.length === 0 && <p>No known drop sources.</p>}

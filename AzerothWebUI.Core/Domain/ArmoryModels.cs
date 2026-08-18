@@ -2,7 +2,7 @@ namespace AzerothWebUI.Core.Domain;
 
 public record CharacterSummary(int Guid, string Name, byte Race, byte Class, byte Level, string? GuildName, bool Online);
 
-public record EquippedItem(byte Slot, int ItemEntry, string Name, byte Quality, int DisplayId);
+public record EquippedItem(byte Slot, int ItemEntry, string Name, byte Quality, int DisplayId, int ItemLevel);
 
 public record CharacterDetail(
     int Guid,
@@ -30,6 +30,6 @@ public record ItemDetail(
     string? Description,
     IReadOnlyList<ItemStat> Stats);
 
-public record ItemSearchResult(int Entry, string Name, byte Quality, int DisplayId);
+public record ItemSearchResult(int Entry, string Name, byte Quality, int DisplayId, int ItemLevel);
 
 public record DropSource(string SourceType, int SourceEntry, string? SourceName, float Chance, byte MinCount, byte MaxCount);

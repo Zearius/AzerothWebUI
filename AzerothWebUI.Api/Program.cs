@@ -27,6 +27,7 @@ builder.Services.AddSingleton(new AhBotRepository(worldConnectionString));
 var adminConnectionString = builder.Configuration.GetValue<string>("AzerothWebUI:AdminConnectionString")
     ?? throw new InvalidOperationException("AzerothWebUI:AdminConnectionString is not configured.");
 builder.Services.AddSingleton(new AdminUserRepository(adminConnectionString));
+builder.Services.AddSingleton(new MotdRepository(adminConnectionString));
 builder.Services.AddSingleton<AdminAuthService>();
 builder.Services.AddSingleton<PlayerAuthService>();
 
@@ -147,8 +148,7 @@ app.MapPost("/api/admin/logout", async (HttpContext http) =>
     await http.SignOutAsync(AdminScheme);
     return Results.Ok();
 })
-.WithName("AdminLogout")
-.RequireAuthorization(AdminScheme);
+.WithName("AdminLogout");
 
 app.MapGet("/api/admin/me", (ClaimsPrincipal user) =>
     Results.Ok(new { username = user.Identity!.Name }))
@@ -180,8 +180,7 @@ app.MapPost("/api/player/logout", async (HttpContext http) =>
     await http.SignOutAsync(PlayerScheme);
     return Results.Ok();
 })
-.WithName("PlayerLogout")
-.RequireAuthorization(PlayerScheme);
+.WithName("PlayerLogout");
 
 app.MapGet("/api/player/me", async (HttpContext http) =>
 {
@@ -258,6 +257,32 @@ app.MapGet("/api/armory/items/{id:int}", async (int id, WorldRepository world) =
 })
 .WithName("ArmoryGetItem");
 
+app.MapGet("/api/status", async (SoapClient soap) =>
+{
+    try
+    {
+        var output = await soap.ExecuteCommandAsync("server info");
+        return Results.Ok(PublicServerStatusParser.Parse(output));
+    }
+    catch (SoapCommandException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
+})
+.WithName("PublicServerStatus");
+
+app.MapGet("/api/motd", async (MotdRepository motd) =>
+    Results.Ok(new { content = await motd.GetAsync() }))
+.WithName("GetMotd");
+
+app.MapPut("/api/admin/motd", async (MotdUpdateRequest request, MotdRepository motd) =>
+{
+    await motd.SetAsync(request.Content);
+    return Results.Ok(new { content = request.Content });
+})
+.WithName("AdminUpdateMotd")
+.RequireAuthorization(AdminScheme);
+
 app.MapGet("/api/admin/status", async (SoapClient soap) =>
 {
     try
@@ -276,6 +301,19 @@ app.MapGet("/api/admin/status", async (SoapClient soap) =>
 app.MapGet("/api/admin/accounts", async (AccountRepository accounts) =>
     Results.Ok(await accounts.ListAccountsAsync()))
 .WithName("AdminListAccounts")
+.RequireAuthorization(AdminScheme);
+
+app.MapGet("/api/admin/accounts/{username}/characters", async (string username, AccountRepository accounts, CharacterRepository characters) =>
+{
+    var accountId = await accounts.FindIdByUsernameAsync(username);
+    if (accountId is null)
+    {
+        return Results.NotFound($"Account '{username}' not found.");
+    }
+
+    return Results.Ok(await characters.ListCharactersByAccountAsync(accountId.Value));
+})
+.WithName("AdminListAccountCharacters")
 .RequireAuthorization(AdminScheme);
 
 app.MapGet("/api/admin/config/files", (ConfigFileService configFiles) =>

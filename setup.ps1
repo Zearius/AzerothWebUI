@@ -299,12 +299,14 @@ if ($soapEnabled -notmatch '=\s*1') {
 }
 
 # --- Step 7: provision admin DB + GM SOAP account -------------------------------------------------
-Write-Host "Applying AzerothWebUI admin database migration..."
-$adminSqlWsl = "$webUiWslPath/AzerothWebUI.Api/Sql/001_create_admin_db.sql"
-Invoke-WslScript @"
+Write-Host "Applying AzerothWebUI admin database migrations..."
+foreach ($migration in @('001_create_admin_db.sql', '002_create_motd.sql')) {
+    $migrationWsl = "$webUiWslPath/AzerothWebUI.Api/Sql/$migration"
+    Invoke-WslScript @"
 cd '$WowServerPath'
-docker compose exec -T ac-database mysql -uroot -p'$dbRootPassword' < '$adminSqlWsl'
+docker compose exec -T ac-database mysql -uroot -p'$dbRootPassword' < '$migrationWsl'
 "@ | Out-Null
+}
 
 $gmAccountExists = Test-WslScript @"
 cd '$WowServerPath'

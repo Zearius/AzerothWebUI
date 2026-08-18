@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { armoryApi, type ItemDetailResult } from '../armoryApi'
 import { qualityClass, qualityName, dropSourceLabel } from '../itemQuality'
 import { statTypeName } from '../wowEnums'
@@ -7,6 +7,7 @@ import PublicHeader from '../PublicHeader'
 
 function ArmoryItemDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [result, setResult] = useState<ItemDetailResult | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -38,7 +39,9 @@ function ArmoryItemDetail() {
       <PublicHeader />
       <div className="armory-page">
         <p>
-          <Link to="/armory/items">← Back to search</Link>
+          <button type="button" className="link-button" onClick={() => navigate(-1)}>
+            ← Back
+          </button>
         </p>
 
         {loading && <p>Loading…</p>}

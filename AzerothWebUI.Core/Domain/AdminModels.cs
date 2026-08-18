@@ -7,3 +7,5 @@ public record ServerStatus(string RawOutput);
 public record AdminAccountSummary(int Id, string Username, string Email, byte GmLevel, bool Banned, bool Online);
 
 public record AwardItemRequest(string CharacterName, int ItemId, int Count, string? Subject, string? Message);
+
+public record MotdUpdateRequest(string Content);

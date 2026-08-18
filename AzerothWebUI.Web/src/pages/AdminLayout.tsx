@@ -26,6 +26,8 @@ function AdminLayout() {
           <NavLink to="/admin/config">Config</NavLink>
           <NavLink to="/admin/ahbot">AH Bot</NavLink>
           <NavLink to="/admin/award-item">Award Item</NavLink>
+          <NavLink to="/admin/motd">MOTD</NavLink>
+          <NavLink to="/armory/characters">Armory</NavLink>
         </nav>
         <div className="admin-user">
           <ThemeToggle />

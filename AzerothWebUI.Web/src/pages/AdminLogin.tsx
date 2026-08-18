@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Navigate, useNavigate } from 'react-router'
 import { useAdminAuth } from '../AdminAuthContext'
 import PublicHeader from '../PublicHeader'
 
@@ -8,8 +8,12 @@ function AdminLogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const { login } = useAdminAuth()
+  const { username: loggedInUsername, loading, login } = useAdminAuth()
   const navigate = useNavigate()
+
+  if (!loading && loggedInUsername) {
+    return <Navigate to="/admin" replace />
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,7 +34,7 @@ function AdminLogin() {
     <>
       <PublicHeader />
       <section id="center">
-        <div>
+        <div className="center-heading">
           <h1>Admin Login</h1>
           <p>Sign in to manage the server.</p>
         </div>

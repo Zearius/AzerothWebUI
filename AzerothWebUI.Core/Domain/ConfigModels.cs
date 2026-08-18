@@ -8,6 +8,10 @@ public record ConfigEntry(
     string Section,
     string Description,
     IReadOnlyList<ConfigDefaultOption> Defaults,
-    bool IsToggle);
+    bool IsToggle,
+    string SourceFile = "",
+    bool RequiresRestart = false);
+
+public record ConfigFileDescriptor(string Id, string DisplayName, bool AlwaysRestartRequired);
 
 public record UpdateConfigValueRequest(string Value);

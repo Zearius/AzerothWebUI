@@ -22,12 +22,6 @@ public static partial class WorldserverConfigParser
     [GeneratedRegex(@"^#\s*(Example|Important):")]
     private static partial Regex OtherLabelRegex();
 
-    // A section divider: a long run of '#' characters, e.g. "###################...###".
-    // Distinct from a lone "#" used as a spacer between comment blocks, which is only
-    // 1-2 characters long.
-    [GeneratedRegex(@"^#{10,}\s*$")]
-    private static partial Regex DividerLineRegex();
-
     // Matches one "value - (label)" or bare "value" default line, e.g.
     // `1 - (Enabled)` or `"."` or `1000`.
     [GeneratedRegex(@"^([^-]+?)(?:\s*-\s*\(([^)]*)\))?$")]
@@ -51,8 +45,7 @@ public static partial class WorldserverConfigParser
         var pendingKeyNames = new List<string>();
         var appliedKeyCount = 0;
         var mode = CommentMode.None;
-        var section = string.Empty;
-        var previousLineWasDivider = false;
+        var sectionTracker = new SectionBannerTracker();
 
         foreach (var rawLine in lines)
         {
@@ -60,14 +53,13 @@ public static partial class WorldserverConfigParser
 
             if (line.StartsWith('#'))
             {
-                if (DividerLineRegex().IsMatch(line))
+                // A divider always starts a fresh section — discard any dangling
+                // key-header names that were never followed by a Description:/Default:
+                // (e.g. the file's own SECTION INDEX block, which lists many bare
+                // section names that look like single-word key headers).
+                var wasDividerOrBanner = sectionTracker.TryConsume(line);
+                if (wasDividerOrBanner)
                 {
-                    previousLineWasDivider = true;
-
-                    // A divider always starts a fresh section — discard any dangling
-                    // key-header names that were never followed by a Description:/Default:
-                    // (e.g. the file's own SECTION INDEX block, which lists many bare
-                    // section names that look like single-word key headers).
                     if (mode == CommentMode.None)
                     {
                         pendingKeyNames.Clear();
@@ -75,16 +67,6 @@ public static partial class WorldserverConfigParser
 
                     continue;
                 }
-
-                if (previousLineWasDivider)
-                {
-                    // The line right after a divider is a section banner, e.g. "# CONSOLE".
-                    section = line.TrimStart('#', ' ').Trim();
-                    previousLineWasDivider = false;
-                    continue;
-                }
-
-                previousLineWasDivider = false;
 
                 var descMatch = DescriptionRegex().Match(line);
                 var defaultMatch = DefaultRegex().Match(line);
@@ -124,7 +106,7 @@ public static partial class WorldserverConfigParser
                 continue;
             }
 
-            previousLineWasDivider = false;
+            sectionTracker.ResetDividerState();
 
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -149,13 +131,13 @@ public static partial class WorldserverConfigParser
 
             var defaults = ParseDefaultOptions(defaultLines);
             var isToggle = defaults.Count > 0
-                && defaults.All(d => d.Value is "0" or "1")
-                && value is "0" or "1";
+                && BooleanValues.IsBooleanPair(defaults.Select(d => d.Value))
+                && BooleanValues.IsBooleanValue(value);
 
             entries.Add(new ConfigEntry(
                 Key: key,
                 CurrentValue: value,
-                Section: section,
+                Section: sectionTracker.Section,
                 Description: string.Join(' ', descriptionLines),
                 Defaults: defaults,
                 IsToggle: isToggle));

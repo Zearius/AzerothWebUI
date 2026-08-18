@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { adminApi, type ConfigEntry } from '../adminApi'
+import { adminApi, type ConfigEntry, type ConfigFile } from '../adminApi'
+
+function flipBoolean(value: string): string {
+  const lower = value.toLowerCase()
+  if (lower === 'true') return 'false'
+  if (lower === 'false') return 'true'
+  return value === '1' ? '0' : '1'
+}
 
 function ConfigRow({
   entry,
@@ -14,6 +21,7 @@ function ConfigRow({
   useEffect(() => setDraft(entry.currentValue), [entry.currentValue])
 
   const dirty = draft !== entry.currentValue
+  const isOn = entry.currentValue.toLowerCase() === 'true' || entry.currentValue === '1'
 
   const save = async (value: string) => {
     setSaving(true)
@@ -25,9 +33,12 @@ function ConfigRow({
   }
 
   return (
-    <div className="config-row">
+    <div className={`config-row ${entry.requiresRestart ? 'restart-required' : ''}`}>
       <div className="config-row-label">
-        <span className="config-key">{entry.key}</span>
+        <span className="config-key">
+          {entry.key}
+          {entry.requiresRestart && <span className="restart-badge">restart required</span>}
+        </span>
         {entry.description && <span className="config-description">{entry.description}</span>}
       </div>
 
@@ -35,10 +46,10 @@ function ConfigRow({
         <button
           type="button"
           role="switch"
-          aria-checked={entry.currentValue === '1'}
-          className={`toggle ${entry.currentValue === '1' ? 'on' : 'off'}`}
+          aria-checked={isOn}
+          className={`toggle ${isOn ? 'on' : 'off'}`}
           disabled={saving}
-          onClick={() => save(entry.currentValue === '1' ? '0' : '1')}
+          onClick={() => save(flipBoolean(entry.currentValue))}
         >
           <span className="toggle-thumb" />
         </button>
@@ -65,24 +76,30 @@ function ConfigRow({
 }
 
 function AdminConfig() {
+  const [files, setFiles] = useState<ConfigFile[]>([])
+  const [activeFile, setActiveFile] = useState('worldserver')
   const [entries, setEntries] = useState<ConfigEntry[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [actionMessage, setActionMessage] = useState('')
+  const [actionMessage, setActionMessage] = useState<{ text: string; kind: 'live' | 'restart' | 'error' } | null>(null)
   const [search, setSearch] = useState('')
   const [openSections, setOpenSections] = useState<Set<string>>(new Set())
 
-  const load = () => {
+  useEffect(() => {
+    adminApi.configFiles().then(setFiles).catch(() => setFiles([]))
+  }, [])
+
+  const load = (file: string) => {
     setLoading(true)
     setError('')
     adminApi
-      .config()
+      .config(file)
       .then(setEntries)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
-  useEffect(load, [])
+  useEffect(() => load(activeFile), [activeFile])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -115,28 +132,46 @@ function AdminConfig() {
   }
 
   const handleSave = async (key: string, value: string) => {
-    setActionMessage('')
+    setActionMessage(null)
     try {
-      const result = await adminApi.updateConfig(key, value)
+      const result = await adminApi.updateConfig(activeFile, key, value)
       setEntries((prev) => prev.map((e) => (e.key === key ? result.entry : e)))
-      setActionMessage(`${key} updated. ${result.reloadResult}`)
+      setActionMessage(
+        result.requiresRestart
+          ? { text: `${key} saved. Restart the worldserver to apply this change.`, kind: 'restart' }
+          : { text: `${key} updated. ${result.reloadResult ?? ''}`, kind: 'live' },
+      )
     } catch (err) {
-      setActionMessage(err instanceof Error ? err.message : 'Save failed.')
+      setActionMessage({ text: err instanceof Error ? err.message : 'Save failed.', kind: 'error' })
     }
   }
 
   return (
     <section>
       <div className="page-header">
-        <h2>Worldserver Config</h2>
-        <button type="button" className="counter" onClick={load} disabled={loading}>
+        <h2>Config</h2>
+        <button type="button" className="counter" onClick={() => load(activeFile)} disabled={loading}>
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
+      <div className="config-file-tabs">
+        {files.map((file) => (
+          <button
+            key={file.id}
+            type="button"
+            className={`config-file-tab ${activeFile === file.id ? 'active' : ''}`}
+            onClick={() => setActiveFile(file.id)}
+          >
+            {file.displayName}
+          </button>
+        ))}
+      </div>
+
       <p className="config-hint">
-        Only settings that apply live (via <code>reload config</code>) are shown here. Settings
-        that require a worldserver restart are not editable from this page.
+        Settings marked <span className="restart-badge inline">restart required</span> are saved to
+        disk immediately but only take effect after the worldserver is restarted. Everything else
+        applies live.
       </p>
 
       <input
@@ -148,7 +183,11 @@ function AdminConfig() {
       />
 
       {error && <p className="form-message error">{error}</p>}
-      {actionMessage && <p className="form-message">{actionMessage}</p>}
+      {actionMessage && (
+        <p className={`form-message ${actionMessage.kind === 'error' ? 'error' : ''} ${actionMessage.kind === 'restart' ? 'restart-message' : ''}`}>
+          {actionMessage.text}
+        </p>
+      )}
 
       <div className="config-sections">
         {grouped.map(([section, sectionEntries]) => {

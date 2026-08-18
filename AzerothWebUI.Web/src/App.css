@@ -178,6 +178,60 @@
   }
 }
 
+.config-file-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.config-file-tab {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+
+  &.active {
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    color: var(--text-h);
+  }
+}
+
+.restart-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(217, 119, 6, 0.15);
+  color: #d97706;
+  vertical-align: middle;
+
+  &.inline {
+    margin-left: 0;
+  }
+}
+
+.config-row.restart-required {
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.form-message.restart-message {
+  color: #d97706;
+}
+
 .config-hint {
   font-size: 14px;
   margin-bottom: 12px;

@@ -23,11 +23,20 @@ export type ConfigEntry = {
   description: string
   defaults: ConfigDefaultOption[]
   isToggle: boolean
+  sourceFile: string
+  requiresRestart: boolean
+}
+
+export type ConfigFile = {
+  id: string
+  displayName: string
+  alwaysRestartRequired: boolean
 }
 
 export type UpdateConfigResult = {
   entry: ConfigEntry
-  reloadResult: string
+  requiresRestart: boolean
+  reloadResult: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -64,9 +73,10 @@ export const adminApi = {
     request<{ result: string }>(`/api/admin/accounts/${encodeURIComponent(username)}/unban`, { method: 'POST' }),
   kick: (username: string) =>
     request<{ result: string }>(`/api/admin/accounts/${encodeURIComponent(username)}/kick`, { method: 'POST' }),
-  config: () => request<ConfigEntry[]>('/api/admin/config'),
-  updateConfig: (key: string, value: string) =>
-    request<UpdateConfigResult>(`/api/admin/config/${encodeURIComponent(key)}`, {
+  configFiles: () => request<ConfigFile[]>('/api/admin/config/files'),
+  config: (file: string) => request<ConfigEntry[]>(`/api/admin/config/${encodeURIComponent(file)}`),
+  updateConfig: (file: string, key: string, value: string) =>
+    request<UpdateConfigResult>(`/api/admin/config/${encodeURIComponent(file)}/${encodeURIComponent(key)}`, {
       method: 'PATCH',
       body: JSON.stringify({ value }),
     }),
